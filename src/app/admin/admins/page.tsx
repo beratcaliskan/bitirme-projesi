@@ -283,8 +283,8 @@ export default function AdminsPage() {
                             roleStyles[admin.role].bg
                           } ${roleStyles[admin.role].text}`}
                         >
-                          <Select.Value className="hidden sm:inline">{roleLabels[admin.role]}</Select.Value>
-                          <Select.Value className="sm:hidden">{roleLabels[admin.role].split(' ')[0]}</Select.Value>
+                          <span className="hidden sm:inline">{roleLabels[admin.role]}</span>
+                          <span className="sm:hidden">{roleLabels[admin.role].split(' ')[0]}</span>
                           <Select.Icon>
                             <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                           </Select.Icon>
