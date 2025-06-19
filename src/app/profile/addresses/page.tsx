@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast-provider';
@@ -11,16 +11,16 @@ import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 
 export default function AddressesPage() {
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedAddress, setSelectedAddress] = useState<Address | undefined>(undefined);
+
   const [addressToDelete, setAddressToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    full_name: '',
+    name: '',
     phone: '',
     city: '',
     district: '',
@@ -30,13 +30,7 @@ export default function AddressesPage() {
   });
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchAddresses();
-    }
-  }, [user]);
-
-  const fetchAddresses = async () => {
+  const fetchAddresses = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -48,24 +42,28 @@ export default function AddressesPage() {
 
       if (error) throw error;
       setAddresses(data || []);
-    } catch (error) {
-      showToast('Adresler yüklenirken bir hata oluştu.', 'error');
+    } catch {
+      toast({ description: 'Adresler yüklenirken bir hata oluştu.', variant: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchAddresses();
+    }
+  }, [user, fetchAddresses]);
 
   const handleSetDefault = async (addressId: string) => {
     if (!user) return;
 
     try {
-      // Remove default from all addresses
       await supabase
         .from('addresses')
         .update({ is_default: false })
         .eq('user_id', user.id);
 
-      // Set new default
       const { error } = await supabase
         .from('addresses')
         .update({ is_default: true })
@@ -73,10 +71,10 @@ export default function AddressesPage() {
 
       if (error) throw error;
 
-      showToast('Varsayılan adres güncellendi.', 'success');
+      toast({ description: 'Varsayılan adres güncellendi.', variant: 'success' });
       fetchAddresses();
-    } catch (error) {
-      showToast('Bir hata oluştu.', 'error');
+    } catch {
+      toast({ description: 'Bir hata oluştu.', variant: 'error' });
     }
   };
 
@@ -96,17 +94,17 @@ export default function AddressesPage() {
 
       if (error) throw error;
 
-      showToast('Adres başarıyla silindi.', 'success');
+      toast({ description: 'Adres başarıyla silindi.', variant: 'success' });
       fetchAddresses();
-    } catch (error) {
-      showToast('Adres silinirken bir hata oluştu.', 'error');
+    } catch {
+      toast({ description: 'Adres silinirken bir hata oluştu.', variant: 'error' });
     }
   };
 
   const handleEdit = async (address: Address) => {
     setFormData({
       title: address.title,
-      full_name: address.full_name,
+      name: address.name,
       phone: address.phone,
       city: address.city,
       district: address.district,
@@ -119,7 +117,6 @@ export default function AddressesPage() {
   };
 
   const handleAddNew = () => {
-    setSelectedAddress(undefined);
     setIsModalOpen(true);
   };
 
@@ -181,7 +178,7 @@ export default function AddressesPage() {
               </div>
             </div>
             <div className="space-y-1 text-gray-600">
-              <p>{address.full_name}</p>
+              <p>{address.name}</p>
               <p>{address.phone}</p>
               <p>
                 {address.neighborhood} Mah. {address.district}/{address.city}
@@ -198,7 +195,7 @@ export default function AddressesPage() {
           setIsModalOpen(false);
           setFormData({
             title: '',
-            full_name: '',
+            name: '',
             phone: '',
             city: '',
             district: '',

@@ -1,24 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { loginUser } from '@/lib/utils/auth';
 import { supabase } from '@/lib/supabase';
 
-export default function LoginPage() {
-  const router = useRouter();
+function LoginForm() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  // URL'den redirect ve error parametrelerini al
   const redirectTo = searchParams.get('redirect') || '/';
   const errorMessage = searchParams.get('error');
 
-  // Error mesajını göster
   useEffect(() => {
     if (errorMessage === 'session_expired') {
       setError('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
@@ -38,7 +35,6 @@ export default function LoginPage() {
       const { user } = await loginUser({ email, password });
       console.log('Login successful:', user);
       
-      // Admin kontrolü yap
       const { data: admin, error: adminError } = await supabase
         .from('admins')
         .select('*')
@@ -64,10 +60,16 @@ export default function LoginPage() {
         setError('Bu sayfaya erişim yetkiniz yok.');
         return;
       }
-
+      if(admin) {
+        await supabase
+        .from('admins')
+        .update({ 
+          last_login: new Date().toLocaleDateString('tr-TR'),
+        })
+        .eq('id', admin.id);
+      }
       console.log('Access granted, redirecting to:', redirectTo);
       
-      // Sayfayı yenile ve yönlendir
       window.location.href = redirectTo;
     } catch (err) {
       console.error('Login error:', err);
@@ -132,5 +134,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><div>Yükleniyor...</div></div>}>
+      <LoginForm />
+    </Suspense>
   );
 } 

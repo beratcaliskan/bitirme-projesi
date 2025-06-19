@@ -1,22 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast-provider';
 import { supabase } from '@/lib/supabase';
 import type { PaymentMethod } from '@/lib/supabase';
-import { PaymentMethodModal } from '@/components/profile/PaymentMethodModal';
+import { PaymentMethodModal } from '@/components/profile/payment-method-modal';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 
 export default function PaymentMethodsPage() {
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
+
   const [paymentMethodToDelete, setPaymentMethodToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     card_holder: '',
@@ -28,13 +28,7 @@ export default function PaymentMethodsPage() {
   });
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchPaymentMethods();
-    }
-  }, [user]);
-
-  const fetchPaymentMethods = async () => {
+  const fetchPaymentMethods = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -46,24 +40,32 @@ export default function PaymentMethodsPage() {
 
       if (error) throw error;
       setPaymentMethods(data || []);
-    } catch (error) {
-      showToast('Ödeme yöntemleri yüklenirken bir hata oluştu.', 'error');
+    } catch {
+      toast({
+        title: 'Hata',
+        description: 'Ödeme yöntemleri yüklenirken bir hata oluştu.',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPaymentMethods();
+    }
+  }, [user, fetchPaymentMethods]);
 
   const handleSetDefault = async (paymentMethodId: string) => {
     if (!user) return;
 
     try {
-      // Remove default from all payment methods
       await supabase
         .from('payment_methods')
         .update({ is_default: false })
         .eq('user_id', user.id);
 
-      // Set new default
       const { error } = await supabase
         .from('payment_methods')
         .update({ is_default: true })
@@ -71,10 +73,17 @@ export default function PaymentMethodsPage() {
 
       if (error) throw error;
 
-      showToast('Varsayılan ödeme yöntemi güncellendi.', 'success');
+      toast({
+        title: 'Başarılı',
+        description: 'Varsayılan ödeme yöntemi güncellendi.'
+      });
       fetchPaymentMethods();
-    } catch (error) {
-      showToast('Bir hata oluştu.', 'error');
+    } catch {
+      toast({
+        title: 'Hata',
+        description: 'Bir hata oluştu.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -94,10 +103,17 @@ export default function PaymentMethodsPage() {
 
       if (error) throw error;
 
-      showToast('Ödeme yöntemi başarıyla silindi.', 'success');
+      toast({
+        title: 'Başarılı',
+        description: 'Ödeme yöntemi başarıyla silindi.'
+      });
       fetchPaymentMethods();
-    } catch (error) {
-      showToast('Ödeme yöntemi silinirken bir hata oluştu.', 'error');
+    } catch {
+      toast({
+        title: 'Hata',
+        description: 'Ödeme yöntemi silinirken bir hata oluştu.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -105,9 +121,9 @@ export default function PaymentMethodsPage() {
     setFormData({
       card_holder: paymentMethod.card_holder,
       card_number: paymentMethod.card_number,
-      expire_month: paymentMethod.expire_month,
-      expire_year: paymentMethod.expire_year,
-      cvv: '',  // CVV güvenlik nedeniyle boş bırakılır
+      expire_month: paymentMethod.expire_month.toString(),
+      expire_year: paymentMethod.expire_year.toString(),
+      cvv: paymentMethod.cvv,
       is_default: paymentMethod.is_default
     });
     setEditingPaymentId(paymentMethod.id);
@@ -115,7 +131,6 @@ export default function PaymentMethodsPage() {
   };
 
   const handleAddNew = () => {
-    setSelectedPaymentMethod(undefined);
     setIsModalOpen(true);
   };
 
@@ -192,7 +207,6 @@ export default function PaymentMethodsPage() {
       <PaymentMethodModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        paymentMethod={selectedPaymentMethod}
         userId={user?.id || ''}
         onSuccess={fetchPaymentMethods}
         formData={formData}

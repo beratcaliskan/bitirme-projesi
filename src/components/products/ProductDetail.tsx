@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatPrice } from '@/lib/utils/format';
 import Link from 'next/link';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/components/ui/cart-provider';
 import { useToast } from '@/components/ui/toast-provider';
@@ -60,54 +61,13 @@ export default function ProductDetail({ productId }: Props) {
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
   const [currentVariant, setCurrentVariant] = useState<ProductVariant | null>(null);
   const [error, setError] = useState<string>('');
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [selectedVariants, setSelectedVariants] = useState<{
-    color?: { id: string; name: string; code: string };
-    size?: { id: string; name: string };
+    colors?: Array<{ id: string; name: string; code: string }>;
+    sizes?: Array<{ id: string; name: string }>;
   }>({});
 
-  useEffect(() => {
-    fetchProduct();
-  }, [productId]);
-
-  // Seçili varyantı güncelle
-  useEffect(() => {
-    if (!product) return;
-
-    let variant: ProductVariant | null = null;
-
-    switch (product.type) {
-      case 'simple':
-        variant = product.stock[0] || null;
-        break;
-      case 'color':
-        if (selectedColor) {
-          variant = product.stock.find(v => v.color_id === selectedColor) || null;
-        }
-        break;
-      case 'size':
-        if (selectedSize) {
-          variant = product.stock.find(v => v.size_id === selectedSize) || null;
-        }
-        break;
-      case 'size+color':
-        if (selectedSize && selectedColor) {
-          variant = product.stock.find(
-            v => v.size_id === selectedSize && v.color_id === selectedColor
-          ) || null;
-        }
-        break;
-    }
-
-    setCurrentVariant(variant);
-    setError(variant ? '' : 'Lütfen tüm seçenekleri belirleyin');
-
-    // Varyant değiştiğinde adet kontrolü
-    if (variant) {
-      setQuantity(prev => Math.min(prev, variant.stock));
-    }
-  }, [selectedSize, selectedColor, product]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -118,7 +78,6 @@ export default function ProductDetail({ productId }: Props) {
 
       if (error) throw error;
       
-      // Varsayılan seçimleri ayarla
       if (data.type === 'size' || data.type === 'size+color') {
         if (data.sizes?.[0]) {
           setSelectedSize(data.sizes[0].id);
@@ -141,47 +100,119 @@ export default function ProductDetail({ productId }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId, toast]);
 
-  // Stok kontrolü
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
+
+  useEffect(() => {
+    if (!product) return;
+
+    let variant: ProductVariant | null = null;
+    const newSelectedVariants: {
+      colors?: Array<{ id: string; name: string; code: string }>;
+      sizes?: Array<{ id: string; name: string }>;
+    } = {};
+
+    switch (product.type) {
+      case 'simple':
+        variant = product.stock[0] || null;
+        break;
+      case 'color':
+        if (selectedColor) {
+          variant = product.stock.find(v => v.color_id === selectedColor) || null;
+          const color = product.colors.find(c => c.id === selectedColor);
+          if (color) {
+            newSelectedVariants.colors = [{
+              id: color.id,
+              name: color.name,
+              code: color.code
+            }];
+          }
+        }
+        break;
+      case 'size':
+        if (selectedSize) {
+          variant = product.stock.find(v => v.size_id === selectedSize) || null;
+          const size = product.sizes.find(s => s.id === selectedSize);
+          if (size) {
+            newSelectedVariants.sizes = [{
+              id: size.id,
+              name: size.name
+            }];
+          }
+        }
+        break;
+      case 'size+color':
+        if (selectedSize && selectedColor) {
+          variant = product.stock.find(
+            v => v.size_id === selectedSize && v.color_id === selectedColor
+          ) || null;
+          const size = product.sizes.find(s => s.id === selectedSize);
+          const color = product.colors.find(c => c.id === selectedColor);
+          
+          if (size) {
+            newSelectedVariants.sizes = [{
+              id: size.id,
+              name: size.name
+            }];
+          }
+          if (color) {
+            newSelectedVariants.colors = [{
+              id: color.id,
+              name: color.name,
+              code: color.code
+            }];
+          }
+        }
+        break;
+    }
+
+    setCurrentVariant(variant);
+    setSelectedVariants(newSelectedVariants);
+    setError(variant ? '' : 'Lütfen tüm seçenekleri belirleyin');
+
+    if (variant) {
+      setQuantity(prev => Math.min(prev, variant.stock));
+    }
+  }, [selectedSize, selectedColor, product]);
+
+
+
   const getAvailableStock = () => {
     if (!currentVariant) return 0;
     return currentVariant.stock;
   };
 
-  // Fiyat hesaplama
   const getCurrentPrice = () => {
     if (currentVariant) return currentVariant.price;
     return product?.price || 0;
   };
 
-  // Renk seçimi için kullanılabilir boyutları getir
-  const getAvailableSizes = (colorId: string) => {
-    if (!product || product.type !== 'size+color') return [];
-    return product.sizes.filter(size =>
-      product.stock.some(v => v.color_id === colorId && v.size_id === size.id && v.stock > 0)
-    );
-  };
 
-  // Boyut seçimi için kullanılabilir renkleri getir
-  const getAvailableColors = (sizeId: string) => {
-    if (!product || product.type !== 'size+color') return [];
-    return product.colors.filter(color =>
-      product.stock.some(v => v.size_id === sizeId && v.color_id === color.id && v.stock > 0)
-    );
-  };
 
   const handleAddToCart = async () => {
-    if (!product) return;
+    if (!product || !currentVariant || isAddingToCart) return;
 
     try {
+      setIsAddingToCart(true);
+
+      const variantsArray = [];
+      if (selectedVariants.sizes) {
+        variantsArray.push(...selectedVariants.sizes);
+      }
+      if (selectedVariants.colors) {
+        variantsArray.push(...selectedVariants.colors);
+      }
+
       await addItem({
         product_id: product.id,
         name: product.name,
-        price: product.price,
+        price: currentVariant.price,
         quantity: quantity,
         image_url: product.image_url,
-        variants: selectedVariants
+        variants: JSON.stringify(variantsArray)
       });
 
       toast({
@@ -195,6 +226,10 @@ export default function ProductDetail({ productId }: Props) {
         description: 'Ürün sepete eklenirken bir hata oluştu.',
         variant: 'destructive'
       });
+    } finally {
+      setTimeout(() => {
+        setIsAddingToCart(false);
+      }, 500);
     }
   };
 
@@ -220,7 +255,6 @@ export default function ProductDetail({ productId }: Props) {
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
         <nav className="flex mb-8 text-sm">
           <Link href="/" className="text-gray-500 hover:text-gray-700">Ana Sayfa</Link>
           <span className="mx-2 text-gray-400">/</span>
@@ -231,13 +265,14 @@ export default function ProductDetail({ productId }: Props) {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="flex flex-col lg:flex-row">
-            {/* Product Images */}
             <div className="w-full lg:w-1/2">
               <div className="aspect-square relative">
                 {product.image_url ? (
-                  <img
+                  <Image
                     src={product.image_url}
                     alt={product.name}
+                    width={600}
+                    height={600}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -263,7 +298,6 @@ export default function ProductDetail({ productId }: Props) {
               </div>
             </div>
 
-            {/* Product Info */}
             <div className="w-full lg:w-1/2 p-6 lg:p-8">
               <div className="flex flex-col h-full">
                 <div>
@@ -271,7 +305,6 @@ export default function ProductDetail({ productId }: Props) {
                     {product.name}
                   </h1>
 
-                  {/* Rating */}
                   {product.rating && (
                     <div className="flex items-center mb-4">
                       <div className="flex items-center">
@@ -296,7 +329,6 @@ export default function ProductDetail({ productId }: Props) {
                     </div>
                   )}
 
-                  {/* Price */}
                   <div className="mb-6">
                     <div className="flex items-center">
                       <span className="text-3xl font-bold text-gray-900">
@@ -323,7 +355,6 @@ export default function ProductDetail({ productId }: Props) {
                     )}
                   </div>
 
-                  {/* Size Selection */}
                   {(product.type === 'size' || product.type === 'size+color') && product.sizes.length > 0 && (
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-2">
@@ -363,7 +394,6 @@ export default function ProductDetail({ productId }: Props) {
                     </div>
                   )}
 
-                  {/* Color Selection */}
                   {(product.type === 'color' || product.type === 'size+color') && product.colors.length > 0 && (
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-2">
@@ -406,7 +436,6 @@ export default function ProductDetail({ productId }: Props) {
                     </div>
                   )}
 
-                  {/* Quantity */}
                   <div className="mb-6">
                     <h3 className="text-sm font-medium text-gray-900 mb-2">Adet</h3>
                     <div className="flex items-center">
@@ -443,14 +472,23 @@ export default function ProductDetail({ productId }: Props) {
                     </div>
                   </div>
 
-                  {/* Add to Cart */}
                   <div className="flex gap-4">
                     <button
                       onClick={handleAddToCart}
-                      className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={!currentVariant || currentVariant.stock === 0 || !!error}
+                      className={cn(
+                        "flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium transition-all",
+                        isAddingToCart 
+                          ? "opacity-50 cursor-not-allowed bg-indigo-400" 
+                          : "hover:bg-indigo-700",
+                        (!currentVariant || currentVariant.stock === 0 || !!error) && "opacity-50 cursor-not-allowed"
+                      )}
+                      disabled={!currentVariant || currentVariant.stock === 0 || !!error || isAddingToCart}
                     >
-                      {error ? 'Seçenekleri Kontrol Edin' : 'Sepete Ekle'}
+                      {isAddingToCart 
+                        ? 'Ekleniyor...' 
+                        : error 
+                          ? 'Seçenekleri Kontrol Edin' 
+                          : 'Sepete Ekle'}
                     </button>
                     <button className="p-3 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -460,7 +498,6 @@ export default function ProductDetail({ productId }: Props) {
                   </div>
                 </div>
 
-                {/* Product Details Tabs */}
                 <div className="mt-8 pt-8 border-t">
                   <div className="flex space-x-4 mb-6">
                     {(['description', 'specifications', 'reviews'] as const).map((tab) => (
@@ -475,7 +512,7 @@ export default function ProductDetail({ productId }: Props) {
                       >
                         {tab === 'description' && 'Açıklama'}
                         {tab === 'specifications' && 'Özellikler'}
-                        {tab === 'reviews' && 'Değerlendirmeler'}
+                        {/* {tab === 'reviews' && 'Değerlendirmeler'} */}
                       </button>
                     ))}
                   </div>

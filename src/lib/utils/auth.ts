@@ -13,6 +13,7 @@ export interface RegisterData extends LoginCredentials {
 
 export interface AuthUser extends User {
   isAdmin?: boolean;
+  adminRole?: string;
 }
 
 export async function loginUser({ email, password }: LoginCredentials) {
@@ -27,27 +28,42 @@ export async function loginUser({ email, password }: LoginCredentials) {
     throw new Error('Geçersiz email veya şifre');
   }
 
-  // Admin kontrolü
   const { data: admin } = await supabase
     .from('admins')
-    .select('*')
+    .select('id, email, role')
     .eq('email', user.email)
     .single();
 
+  if (admin) {
+    try {
+      const { error: updateError } = await supabase
+        .from('admins')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', admin.id);
+
+      if (updateError) {
+        console.error('Last login update error:', updateError);
+      } else {
+        console.log('Last login updated successfully for admin:', admin.email);
+      }
+    } catch (err) {
+      console.error('Error updating last login:', err);
+    }
+  }
+
   const authUser: AuthUser = {
     ...user,
-    isAdmin: !!admin
+    isAdmin: !!admin,
+    adminRole: admin?.role || null
   };
 
-  // Set user session with admin status
-  Cookies.set('user', JSON.stringify(authUser), { expires: 7 }); // 7 günlük cookie
+  Cookies.set('user', JSON.stringify(authUser), { expires: 7 });
 
   return { user: authUser };
 }
 
 export async function registerUser({ email, password, name }: RegisterData) {
   try {
-    // Check if email exists
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
@@ -55,10 +71,8 @@ export async function registerUser({ email, password, name }: RegisterData) {
       .single();
 
     if (existingUser) {
-      throw new Error('Bu email adresi zaten kullanımda');
+      throw new Error('Bu e-posta adresi zaten kullanımda');
     }
-
-    // Create user
     const { data: user, error } = await supabase
       .from('users')
       .insert([
@@ -82,7 +96,6 @@ export async function registerUser({ email, password, name }: RegisterData) {
       isAdmin: false
     };
 
-    // Set user session
     Cookies.set('user', JSON.stringify(authUser), { expires: 7 });
 
     return { user: authUser };
@@ -101,7 +114,6 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const savedUser = JSON.parse(userCookie) as AuthUser;
     
-    // Veritabanından güncel kullanıcı bilgilerini al
     const { data: currentUser } = await supabase
       .from('users')
       .select('*')
@@ -113,19 +125,38 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
-    // Admin durumunu kontrol et
     const { data: admin } = await supabase
       .from('admins')
-      .select('*')
+      .select('id, email, role, last_login')
       .eq('email', currentUser.email)
       .single();
 
+    if (admin) {
+      const lastLogin = admin.last_login ? new Date(admin.last_login) : null;
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+      if (!lastLogin || lastLogin < oneHourAgo) {
+        try {
+          const { error: updateError } = await supabase
+            .from('admins')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', admin.id);
+
+          if (updateError) {
+            console.error('Last login periodic update error:', updateError);
+          }
+        } catch (err) {
+          console.error('Error in periodic last login update:', err);
+        }
+      }
+    }
+
     const authUser: AuthUser = {
       ...currentUser,
-      isAdmin: !!admin
+      isAdmin: !!admin,
+      adminRole: admin?.role || null
     };
 
-    // Cookie'yi güncelle
     Cookies.set('user', JSON.stringify(authUser), { expires: 7 });
 
     return authUser;
@@ -145,6 +176,32 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 export async function updateProfile(userId: string, updates: Partial<User>): Promise<void> {
+  if (updates.phone) {
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('phone', updates.phone)
+      .neq('id', userId)
+      .single();
+
+    if (existingUser) {
+      throw new Error('Bu telefon numarası başka bir kullanıcı tarafından kullanılıyor');
+    }
+  }
+
+  if (updates.email) {
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', updates.email)
+      .neq('id', userId)
+      .single();
+
+    if (existingUser) {
+      throw new Error('Bu e-posta adresi başka bir kullanıcı tarafından kullanılıyor');
+    }
+  }
+
   const { error } = await supabase
     .from('users')
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -154,7 +211,6 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
     throw new Error('Profil güncellenirken bir hata oluştu');
   }
 
-  // Update cookie if it exists
   const user = await getCurrentUser();
   if (user) {
     const authUser: AuthUser = {
@@ -165,7 +221,13 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
   }
 }
 
-export async function isAdmin(): Promise<boolean> {
+export async function isAdmin(requiredRole?: string): Promise<boolean> {
   const user = await getCurrentUser();
-  return user?.isAdmin || false;
+  if (!user?.isAdmin) return false;
+  
+  if (requiredRole) {
+    return user.adminRole === requiredRole;
+  }
+  
+  return true;
 } 

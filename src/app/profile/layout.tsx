@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
-import clsx from 'clsx';
+
 import { cn } from '@/lib/utils';
 
 const profileSections = [
@@ -49,7 +49,6 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     <div className="min-h-screen bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16">
         <div className="lg:grid lg:grid-cols-12 lg:gap-8">
-          {/* Sidebar */}
           <aside className="lg:col-span-3">
             <nav className="space-y-1">
               {profileSections.map((section) => {
@@ -72,7 +71,6 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             </nav>
           </aside>
 
-          {/* Main Content */}
           <main className="mt-8 lg:mt-0 lg:col-span-9">
             <div className="bg-white shadow-sm rounded-lg p-6">
               {children}

@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast-provider';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { supabase } from '@/lib/supabase';
-import bcrypt from 'bcryptjs';
+
 
 export default function SecurityPage() {
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [pendingPasswordData, setPendingPasswordData] = useState<typeof formData | null>(null);
@@ -32,12 +32,12 @@ export default function SecurityPage() {
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
-      showToast('Yeni şifreler eşleşmiyor.', 'error');
+      toast({ description: 'Yeni şifreler eşleşmiyor.', variant: 'error' });
       return;
     }
 
     if (formData.newPassword.length < 6) {
-      showToast('Yeni şifre en az 6 karakter olmalıdır.', 'error');
+      toast({ description: 'Yeni şifre en az 6 karakter olmalıdır.', variant: 'error' });
       return;
     }
 
@@ -50,7 +50,6 @@ export default function SecurityPage() {
     setIsLoading(true);
 
     try {
-      // Önce mevcut şifreyi kontrol et
       const { data: userData, error: fetchError } = await supabase
         .from('users')
         .select('password')
@@ -61,15 +60,13 @@ export default function SecurityPage() {
         throw new Error('Kullanıcı bilgileri alınamadı.');
       }
 
-      // Mevcut şifreyi kontrol et
       if (userData.password !== pendingPasswordData.currentPassword) {
-        showToast('Mevcut şifre yanlış.', 'error');
+        toast({ description: 'Mevcut şifre yanlış.', variant: 'error' });
         setIsPasswordModalOpen(false);
         setPendingPasswordData(null);
         return;
       }
 
-      // Yeni şifreyi güncelle
       const { error: updateError } = await supabase
         .from('users')
         .update({ password: pendingPasswordData.newPassword })
@@ -77,7 +74,7 @@ export default function SecurityPage() {
 
       if (updateError) throw updateError;
 
-      showToast('Şifre başarıyla güncellendi.', 'success');
+      toast({ description: 'Şifre başarıyla güncellendi.', variant: 'success' });
       setFormData({
         currentPassword: '',
         newPassword: '',
@@ -86,7 +83,7 @@ export default function SecurityPage() {
       setIsPasswordModalOpen(false);
     } catch (error) {
       console.error('Password update error:', error);
-      showToast('Şifre güncellenirken bir hata oluştu.', 'error');
+      toast({ description: 'Şifre güncellenirken bir hata oluştu.', variant: 'error' });
     } finally {
       setIsLoading(false);
       setPendingPasswordData(null);
@@ -102,7 +99,6 @@ export default function SecurityPage() {
       <h2 className="text-xl font-semibold text-gray-900 mb-6">Güvenlik Ayarları</h2>
 
       <div className="space-y-8">
-        {/* Şifre Değiştirme */}
         <div>
           <h3 className="text-lg font-medium text-gray-900 mb-4">Şifre Değiştir</h3>
           <form onSubmit={handlePasswordUpdate} className="space-y-4">
@@ -138,7 +134,6 @@ export default function SecurityPage() {
           </form>
         </div>
 
-        {/* İki Faktörlü Doğrulama */}
         <div className="border-t pt-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">İki Faktörlü Doğrulama</h3>
           <p className="text-sm text-gray-600 mb-4">
@@ -147,7 +142,6 @@ export default function SecurityPage() {
           <Button variant="outline">İki Faktörlü Doğrulamayı Etkinleştir</Button>
         </div>
 
-        {/* Oturum Geçmişi */}
         <div className="border-t pt-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Oturum Geçmişi</h3>
           <p className="text-sm text-gray-600 mb-4">

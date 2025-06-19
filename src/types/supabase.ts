@@ -41,7 +41,7 @@ export type Database = {
           id: string;
           user_id: string;
           title: string;
-          full_name: string;
+          name: string;
           phone: string;
           city: string;
           district: string;
@@ -55,7 +55,7 @@ export type Database = {
           id?: string;
           user_id: string;
           title: string;
-          full_name: string;
+          name: string;
           phone: string;
           city: string;
           district: string;
@@ -69,7 +69,7 @@ export type Database = {
           id?: string;
           user_id?: string;
           title?: string;
-          full_name?: string;
+          name?: string;
           phone?: string;
           city?: string;
           district?: string;
@@ -88,6 +88,7 @@ export type Database = {
           card_number: string;
           expire_month: number;
           expire_year: number;
+          cvv: string;
           is_default: boolean;
           created_at: string;
           updated_at: string;
@@ -99,6 +100,7 @@ export type Database = {
           card_number: string;
           expire_month: number;
           expire_year: number;
+          cvv: string;
           is_default?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -110,6 +112,7 @@ export type Database = {
           card_number?: string;
           expire_month?: number;
           expire_year?: number;
+          cvv?: string;
           is_default?: boolean;
           created_at?: string;
           updated_at?: string;

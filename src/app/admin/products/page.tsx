@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import Modal from '@/components/ui/modal';
+import Image from 'next/image';
 
 interface ProductSize {
   id: string;
@@ -44,11 +45,11 @@ interface Product {
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Yeni ürün için form state'i
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -62,7 +63,6 @@ export default function AdminProducts() {
     stock: [] as ProductStock[]
   });
 
-  // Geçici state'ler
   const [tempSize, setTempSize] = useState({ id: '', name: '' });
   const [tempColor, setTempColor] = useState({ id: '', name: '', code: '' });
   const [tempStock, setTempStock] = useState({
@@ -78,18 +78,54 @@ export default function AdminProducts() {
 
   const fetchProducts = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      
+
+      const safeProducts = Array.isArray(data) ? data.map((product) => {
+
+        let validImageUrl = '';
+        if (product.image_url && typeof product.image_url === 'string') {
+          const trimmedUrl = product.image_url.trim();
+
+          if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+            try {
+
+              const url = new URL(trimmedUrl);
+
+              if (url.hostname && url.hostname.includes('.')) {
+                validImageUrl = trimmedUrl;
+              } else {
+                validImageUrl = '';
+              }
+            } catch {
+              validImageUrl = '';
+            }
+          } else {
+            validImageUrl = '';
+          }
+        }
+        
+        return {
+          ...product,
+          sizes: Array.isArray(product.sizes) ? product.sizes : [],
+          colors: Array.isArray(product.colors) ? product.colors : [],
+          stock: Array.isArray(product.stock) ? product.stock : [],
+          image_url: validImageUrl,
+          name: product.name || 'İsimsiz Ürün',
+          brand: product.brand || '',
+          price: product.price || 0
+        };
+      }) : [];
+      
+      setProducts(safeProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
+      setProducts([]);
     }
   };
 
@@ -123,7 +159,7 @@ export default function AdminProducts() {
       formData
     });
 
-    // Validation checks
+
     if (stock <= 0) {
       alert('Lütfen geçerli stok miktarı girin');
       return;
@@ -138,8 +174,6 @@ export default function AdminProducts() {
       stock,
       price
     };
-
-    // Ürün tipine göre beden/renk kontrolü
     if (formData.type === 'size' || formData.type === 'size+color') {
       if (!tempStock.size_id || tempStock.size_id === '') {
         console.log('Size validation failed:', tempStock.size_id);
@@ -158,7 +192,6 @@ export default function AdminProducts() {
       newStock.color_id = tempStock.color_id;
     }
 
-    // Aynı varyasyon kontrolü
     const isDuplicate = formData.stock.some(item => {
       if (formData.type === 'simple') return formData.stock.length > 0;
       if (formData.type === 'size') return item.size_id === tempStock.size_id;
@@ -193,7 +226,6 @@ export default function AdminProducts() {
       let data, error;
 
       if (selectedProduct) {
-        // Update existing product
         const { data: updateData, error: updateError } = await supabase
           .from('products')
           .update({
@@ -215,7 +247,6 @@ export default function AdminProducts() {
         data = updateData;
         error = updateError;
       } else {
-        // Create new product
         const { data: insertData, error: insertError } = await supabase
           .from('products')
           .insert([{
@@ -240,10 +271,8 @@ export default function AdminProducts() {
       if (error) throw error;
 
       if (selectedProduct) {
-        // Update existing product in state
         setProducts(prev => prev.map(p => p.id === selectedProduct.id ? data : p));
       } else {
-        // Add new product to state
         setProducts(prev => [data, ...prev]);
       }
 
@@ -295,32 +324,46 @@ export default function AdminProducts() {
         </Button>
       </div>
 
-      {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {products.map((product) => (
+        {Array.isArray(products) && products.map((product) => (
           <div
-            key={product.id}
+            key={product?.id || Math.random()}
             className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:shadow-lg transition-shadow duration-200"
           >
             <div className="aspect-square relative">
-              <img
-                src={product.image_url || '/placeholder.png'}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-2 right-2">
+              {product.image_url && product.image_url.trim() !== '' ? (
+                <div className="w-full h-full relative">
+                  <Image
+                    src={product.image_url}
+                    alt={product.name || 'Ürün'}
+                    fill
+                    className="object-cover"
+                    onError={() => {
+
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                  <span className="text-gray-400 text-sm">Görsel yok</span>
+                </div>
+              )}
+              <div className="absolute top-2 right-2 z-10">
                 <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                  {product.stock.reduce((total, item) => total + item.stock, 0)} adet
+                  {Array.isArray(product.stock) 
+                    ? product.stock.reduce((total, item) => total + (item?.stock || 0), 0) 
+                    : 0
+                  } adet
                 </span>
               </div>
             </div>
             
             <div className="p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-1">{product.name}</h3>
-              <p className="text-sm text-gray-500 mb-2">{product.brand}</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">{product?.name || 'İsimsiz Ürün'}</h3>
+              <p className="text-sm text-gray-500 mb-2">{product?.brand || 'Marka belirtilmemiş'}</p>
               <div className="flex items-center justify-between">
                 <span className="text-lg font-bold text-gray-900">
-                  {formatPrice(product.price)}
+                  {formatPrice(product?.price || 0)}
                 </span>
                 <button
                   onClick={() => handleEdit(product)}
@@ -358,7 +401,6 @@ export default function AdminProducts() {
         <div className="relative">
           <div className="max-h-[calc(100vh-12rem)] overflow-y-auto pr-4 -mr-4">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Temel Bilgiler */}
               <div className="space-y-4">
                 <Input
                   label="Ürün Adı"
@@ -383,13 +425,11 @@ export default function AdminProducts() {
                   label="Kategori"
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  // required
                 />
                 <Input
                   label="Marka"
                   value={formData.brand}
                   onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                  // required
                 />
                 <Input
                   label="Görsel URL"
@@ -409,7 +449,6 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* Beden Seçenekleri */}
               {(formData.type === 'size' || formData.type === 'size+color') && (
                 <div className="space-y-4 border-t pt-4">
                   <h3 className="font-medium text-gray-900">Beden Seçenekleri</h3>
@@ -454,7 +493,6 @@ export default function AdminProducts() {
                 </div>
               )}
 
-              {/* Renk Seçenekleri */}
               {(formData.type === 'color' || formData.type === 'size+color') && (
                 <div className="space-y-4 border-t pt-4">
                   <h3 className="font-medium text-gray-900">Renk Seçenekleri</h3>
@@ -517,7 +555,6 @@ export default function AdminProducts() {
                 </div>
               )}
 
-              {/* Stok Bilgileri */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="font-medium text-gray-900">Stok Bilgileri</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -526,10 +563,10 @@ export default function AdminProducts() {
                       label="Beden"
                       value={tempStock.size_id}
                       onChange={(e) => setTempStock(prev => ({ ...prev, size_id: e.target.value }))}
-                      options={formData.sizes.map(size => ({
-                        value: size.id,
-                        label: size.name
-                      }))}
+                      options={Array.isArray(formData.sizes) ? formData.sizes.map(size => ({
+                        value: size?.id || '',
+                        label: size?.name || 'Bilinmeyen Beden'
+                      })) : []}
                     />
                   )}
                   {(formData.type === 'color' || formData.type === 'size+color') && (
@@ -537,10 +574,10 @@ export default function AdminProducts() {
                       label="Renk"
                       value={tempStock.color_id}
                       onChange={(e) => setTempStock(prev => ({ ...prev, color_id: e.target.value }))}
-                      options={formData.colors.map(color => ({
-                        value: color.id,
-                        label: color.name
-                      }))}
+                      options={Array.isArray(formData.colors) ? formData.colors.map(color => ({
+                        value: color?.id || '',
+                        label: color?.name || 'Bilinmeyen Renk'
+                      })) : []}
                     />
                   )}
                   <Input
@@ -568,11 +605,11 @@ export default function AdminProducts() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {formData.stock.map((item, index) => (
+                  {Array.isArray(formData.stock) && formData.stock.map((item, index) => (
                     <div key={index} className="bg-gray-100 px-3 py-1 rounded-full text-sm">
-                      {item.size_id && `${formData.sizes.find(s => s.id === item.size_id)?.name} - `}
-                      {item.color_id && `${formData.colors.find(c => c.id === item.color_id)?.name} - `}
-                      {item.stock} adet - {formatPrice(item.price)}
+                      {item?.size_id && `${formData.sizes.find(s => s?.id === item.size_id)?.name || 'Bilinmeyen Beden'} - `}
+                      {item?.color_id && `${formData.colors.find(c => c?.id === item.color_id)?.name || 'Bilinmeyen Renk'} - `}
+                      {item?.stock || 0} adet - {formatPrice(item?.price || 0)}
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({

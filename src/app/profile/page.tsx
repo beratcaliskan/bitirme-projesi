@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,17 +8,16 @@ import { useToast } from '@/components/ui/toast-provider';
 import { supabase } from '@/lib/supabase';
 import type { Address, PaymentMethod } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+
 import { updateProfile } from '@/lib/utils/auth';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+
   const router = useRouter();
   const [defaultAddress, setDefaultAddress] = useState<Address | null>(null);
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState<PaymentMethod | null>(null);
@@ -30,6 +29,34 @@ export default function ProfilePage() {
     email: '',
     phone: '',
   });
+
+  const fetchDefaultData = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_default', true)
+        .single();
+
+      setDefaultAddress(addressData);
+
+      const { data: paymentData } = await supabase
+        .from('payment_methods')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_default', true)
+        .single();
+
+      setDefaultPaymentMethod(paymentData);
+    } catch {
+      toast({ description: 'Bilgiler yüklenirken bir hata oluştu.', variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -45,63 +72,7 @@ export default function ProfilePage() {
       phone: user.phone || '',
     });
     fetchDefaultData();
-  }, [user, authLoading]);
-
-  const fetchAddresses = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('addresses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('is_default', { ascending: false });
-
-    if (!error && data) {
-      setAddresses(data);
-    }
-  };
-
-  const fetchPaymentMethods = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('payment_methods')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('is_default', { ascending: false });
-
-    if (!error && data) {
-      setPaymentMethods(data);
-    }
-  };
-
-  const fetchDefaultData = async () => {
-    if (!user) return;
-    
-    try {
-      // Fetch default address
-      const { data: addressData } = await supabase
-        .from('addresses')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_default', true)
-        .single();
-
-      setDefaultAddress(addressData);
-
-      // Fetch default payment method
-      const { data: paymentData } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_default', true)
-        .single();
-
-      setDefaultPaymentMethod(paymentData);
-    } catch (error) {
-      showToast('Bilgiler yüklenirken bir hata oluştu.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user, authLoading, fetchDefaultData, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -122,45 +93,18 @@ export default function ProfilePage() {
 
     try {
       await updateProfile(user.id, pendingFormData);
-      showToast('Profil bilgileri başarıyla güncellendi.', 'success');
+      toast({ description: 'Profil bilgileri başarıyla güncellendi.', variant: 'success' });
       setIsSaveModalOpen(false);
     } catch (error) {
-      showToast('Bir hata oluştu. Lütfen tekrar deneyin.', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Bir hata oluştu. Lütfen tekrar deneyin.';
+      toast({ description: errorMessage, variant: 'error' });
     } finally {
       setIsLoading(false);
       setPendingFormData(null);
     }
   };
 
-  const handleVerifyEmail = async () => {
-    if (!user) return;
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ email_verified: true })
-        .eq('id', user.id);
 
-      if (error) throw error;
-      showToast('E-posta doğrulandı.', 'success');
-    } catch (error) {
-      showToast('Doğrulama işlemi başarısız oldu.', 'error');
-    }
-  };
-
-  const handleVerifyPhone = async () => {
-    if (!user) return;
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ phone_verified: true })
-        .eq('id', user.id);
-
-      if (error) throw error;
-      showToast('Telefon numarası doğrulandı.', 'success');
-    } catch (error) {
-      showToast('Doğrulama işlemi başarısız oldu.', 'error');
-    }
-  };
 
   if (authLoading || loading) {
     return <div>Yükleniyor...</div>;
@@ -172,14 +116,14 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Kişisel Bilgiler Bölümü */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Kişisel Bilgiler</h2>
+    <div className="space-y-6 sm:space-y-8 px-4 sm:px-0">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Kişisel Bilgiler</h2>
           <Button 
             variant="outline" 
             onClick={() => router.push('/profile/security')}
+            className="w-full sm:w-auto"
           >
             Güvenlik Ayarları
           </Button>
@@ -208,20 +152,18 @@ export default function ProfilePage() {
             className="text-gray-900"
           />
           <div className="flex justify-end items-center pt-4">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
               {isLoading ? 'Kaydediliyor...' : 'Kaydet'}
             </Button>
           </div>
         </form>
       </div>
 
-      {/* Adresler ve Ödeme Yöntemleri Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Adresler */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Adreslerim</h2>
-            <Button variant="outline" onClick={() => router.push('/profile/addresses')}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Adreslerim</h2>
+            <Button variant="outline" onClick={() => router.push('/profile/addresses')} className="w-full sm:w-auto">
               Tümünü Gör
             </Button>
           </div>
@@ -230,7 +172,7 @@ export default function ProfilePage() {
               <p className="inline-flex px-3 py-1 text-base font-medium text-indigo-800 bg-gradient-to-r from-indigo-50 to-indigo-100 rounded shadow-sm">Varsayılan Adres</p>
               <div className="space-y-2 text-gray-900">
                 <p className="font-medium">{defaultAddress.title}</p>
-                <p>{defaultAddress.full_name}</p>
+                <p>{defaultAddress.name}</p>
                 <p>{defaultAddress.phone}</p>
                 <p>
                   {defaultAddress.neighborhood} Mah. {defaultAddress.district}/{defaultAddress.city}
@@ -241,18 +183,17 @@ export default function ProfilePage() {
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">Henüz kayıtlı adresiniz bulunmuyor.</p>
-              <Button variant="outline" onClick={() => router.push('/profile/addresses')}>
+              <Button variant="outline" onClick={() => router.push('/profile/addresses')} className="w-full sm:w-auto">
                 Yeni Adres Ekle
               </Button>
             </div>
           )}
         </div>
 
-        {/* Ödeme Yöntemleri */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Ödeme Yöntemlerim</h2>
-            <Button variant="outline" onClick={() => router.push('/profile/payment-methods')}>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Ödeme Yöntemlerim</h2>
+            <Button variant="outline" onClick={() => router.push('/profile/payment-methods')} className="w-full sm:w-auto">
               Tümünü Gör
             </Button>
           </div>
@@ -268,7 +209,7 @@ export default function ProfilePage() {
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">Henüz kayıtlı ödeme yönteminiz bulunmuyor.</p>
-              <Button variant="outline" onClick={() => router.push('/profile/payment-methods')}>
+              <Button variant="outline" onClick={() => router.push('/profile/payment-methods')} className="w-full sm:w-auto">
                 Yeni Kart Ekle
               </Button>
             </div>

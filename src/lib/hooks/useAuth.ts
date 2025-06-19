@@ -11,58 +11,94 @@ export function useAuth() {
   const router = useRouter();
 
   useEffect(() => {
-    checkUser();
-  }, []);
+    let mounted = true;
 
-  async function checkUser() {
-    try {
-      const user = await getCurrentUser();
-      setUser(user);
-    } catch (error) {
-      console.error('Auth check error:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+    const checkUser = async () => {
+      try {
+        setLoading(true);
+        const currentUser = await getCurrentUser();
+        
+        if (mounted) {
+          setUser(currentUser);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        if (mounted) {
+          setUser(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    checkUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function signIn(email: string, password: string) {
     try {
+      setLoading(true);
       const { user } = await loginUser({ email, password });
       setUser(user);
-      await checkUser(); // Kullanıcı bilgilerini yeniden kontrol et
+      await checkUser();
       return user;
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(error.message);
       }
       throw new Error('Giriş yapılırken bir hata oluştu');
+    } finally {
+      setLoading(false);
     }
   }
 
   async function signUp(email: string, password: string, name: string) {
     try {
+      setLoading(true);
       const { user } = await registerUser({ email, password, name });
       setUser(user);
-      await checkUser(); // Kullanıcı bilgilerini yeniden kontrol et
+      await checkUser();
       return user;
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(error.message);
       }
       throw new Error('Kayıt olurken bir hata oluştu');
+    } finally {
+      setLoading(false);
     }
   }
 
   async function signOut() {
     try {
+      setLoading(true);
       await logout();
       setUser(null);
       router.push('/login');
     } catch (error) {
       console.error('Çıkış yapılırken bir hata oluştu:', error);
+    } finally {
+      setLoading(false);
     }
   }
+
+  const checkUser = async () => {
+    try {
+      setLoading(true);
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+    } catch (error) {
+      console.error('Auth check error:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return {
     user,

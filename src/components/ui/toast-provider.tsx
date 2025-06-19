@@ -34,7 +34,7 @@ export function Toast({ title, description, variant = 'info', onClose, duration 
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onClose, 300); // Allow animation to complete
+      setTimeout(onClose, 300); 
     }, duration);
 
     return () => clearTimeout(timer);

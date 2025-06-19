@@ -24,8 +24,8 @@ export default function RegisterPage() {
 
     try {
       await registerUser({ email, password, name });
-      router.push('/'); // Başarılı kayıttan sonra ana sayfaya yönlendir
-      router.refresh(); // Sayfayı yenile (header'daki auth durumunu güncellemek için)
+      router.push('/'); 
+      router.refresh(); 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kayıt olurken bir hata oluştu');
     } finally {
@@ -89,7 +89,7 @@ export default function RegisterPage() {
 
           <Button
             type="submit"
-            fullWidth
+            className="w-full"
             disabled={loading}
           >
             {loading ? 'Hesap oluşturuluyor...' : 'Hesap oluştur'}

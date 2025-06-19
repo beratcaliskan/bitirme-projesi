@@ -3,16 +3,18 @@ import { supabase } from '@/lib/supabase';
 import { Metadata } from 'next';
 
 interface Props {
-  params: {
+  params: Promise<{
   id: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  
   const { data: product } = await supabase
         .from('products')
     .select('name, description')
-        .eq('id', params.id)
+    .eq('id', id)
         .single();
 
   return {
@@ -22,5 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Props) {
-  return <ProductDetail productId={params.id} />;
+  const { id } = await params;
+  
+  return <ProductDetail productId={id} />;
 } 

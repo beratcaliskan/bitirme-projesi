@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast-provider';
 import { supabase } from '@/lib/supabase';
-import type { Address } from '@/lib/supabase';
+
 
 interface AddressModalProps {
   isOpen: boolean;
@@ -14,7 +14,7 @@ interface AddressModalProps {
   onSuccess: () => void;
   formData?: {
     title: string;
-    full_name: string;
+    name: string;
     phone: string;
     city: string;
     district: string;
@@ -26,11 +26,11 @@ interface AddressModalProps {
 }
 
 export function AddressModal({ isOpen, onClose, userId, onSuccess, formData, editingAddressId }: AddressModalProps) {
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
     title: '',
-    full_name: '',
+    name: '',
     phone: '',
     city: '',
     district: '',
@@ -43,10 +43,9 @@ export function AddressModal({ isOpen, onClose, userId, onSuccess, formData, edi
     if (formData) {
       setForm(formData);
     } else {
-      // Formu sıfırla
       setForm({
         title: '',
-        full_name: '',
+        name: '',
         phone: '',
         city: '',
         district: '',
@@ -70,29 +69,39 @@ export function AddressModal({ isOpen, onClose, userId, onSuccess, formData, edi
     setIsLoading(true);
 
     try {
+      console.log('Form data:', form);
+      console.log('User ID:', userId);
+      console.log('Editing Address ID:', editingAddressId);
+
       if (editingAddressId) {
-        // Update existing address
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('addresses')
           .update(form)
-          .eq('id', editingAddressId);
+          .eq('id', editingAddressId)
+          .select();
 
+        console.log('Update response:', { data, error });
         if (error) throw error;
-        showToast('Adres başarıyla güncellendi.', 'success');
+        toast({ description: 'Adres başarıyla güncellendi.', variant: 'success' });
       } else {
-        // Create new address
-        const { error } = await supabase
+        const insertData = { ...form, user_id: userId };
+        console.log('Insert data:', insertData);
+        
+        const { data, error } = await supabase
           .from('addresses')
-          .insert([{ ...form, user_id: userId }]);
+          .insert([insertData])
+          .select();
 
+        console.log('Insert response:', { data, error });
         if (error) throw error;
-        showToast('Adres başarıyla eklendi.', 'success');
+        toast({ description: 'Adres başarıyla eklendi.', variant: 'success' });
       }
 
       onSuccess();
       onClose();
     } catch (error) {
-      showToast('Bir hata oluştu. Lütfen tekrar deneyin.', 'error');
+      console.error('Address submit error:', error);
+      toast({ description: 'Bir hata oluştu. Lütfen tekrar deneyin.', variant: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -137,8 +146,8 @@ export function AddressModal({ isOpen, onClose, userId, onSuccess, formData, edi
           />
           <Input
             label="Ad Soyad"
-            name="full_name"
-            value={form.full_name}
+            name="name"
+            value={form.name}
             onChange={handleChange}
             placeholder="Ad Soyad"
             className="text-gray-900"

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Admin sayfalarını kontrol et
   if (request.nextUrl.pathname.startsWith('/admin')) {
     const user = request.cookies.get('user')?.value;
     

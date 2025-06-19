@@ -10,17 +10,19 @@ interface ToastProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
-  ({ title, description, variant = 'default', open, onOpenChange, ...props }, ref) => {
-    if (!open) return null;
-
+export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(function Toast(
+  { title, description, variant = 'default', open, onOpenChange, ...props }, ref) {
     React.useEffect(() => {
+      if (!open) return;
+      
       const timer = setTimeout(() => {
         onOpenChange?.(false);
       }, 3000);
 
       return () => clearTimeout(timer);
-    }, [onOpenChange]);
+    }, [open, onOpenChange]);
+
+    if (!open) return null;
 
     return (
       <div

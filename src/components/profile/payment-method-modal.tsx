@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast-provider';
 import { supabase } from '@/lib/supabase';
-import type { PaymentMethod } from '@/lib/supabase';
+
 
 interface PaymentMethodModalProps {
   isOpen: boolean;
@@ -31,7 +31,7 @@ export function PaymentMethodModal({
   formData,
   editingPaymentId
 }: PaymentMethodModalProps) {
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({
     card_holder: '',
@@ -47,7 +47,6 @@ export function PaymentMethodModal({
     return digitsOnly.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
   };
 
-  // Reset form when modal is closed
   useEffect(() => {
     if (!isOpen) {
       setForm({
@@ -61,13 +60,11 @@ export function PaymentMethodModal({
     }
   }, [isOpen]);
 
-  // Load form data when editing
   useEffect(() => {
     if (formData && editingPaymentId) {
       const formattedData = {
         ...formData,
         card_number: formatCardNumber(formData.card_number),
-        // Ensure month and year are strings and properly formatted
         expire_month: formData.expire_month ? formData.expire_month.toString().padStart(2, '0') : '',
         expire_year: formData.expire_year ? formData.expire_year.toString() : ''
       };
@@ -79,7 +76,6 @@ export function PaymentMethodModal({
     const { name, value, type } = e.target;
     
     if (name === 'card_number') {
-      // Format card number and limit to 16 digits
       const digitsOnly = value.replace(/\D/g, '').slice(0, 16);
       const formatted = digitsOnly.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
       setForm(prev => ({
@@ -87,7 +83,6 @@ export function PaymentMethodModal({
         [name]: formatted
       }));
     } else if (name === 'cvv') {
-      // Only allow numbers and limit to 3 digits
       const digitsOnly = value.replace(/\D/g, '').slice(0, 3);
       setForm(prev => ({
         ...prev,
@@ -106,18 +101,15 @@ export function PaymentMethodModal({
     setIsLoading(true);
 
     try {
-      // Validate card number format
       const cardNumberDigits = form.card_number.replace(/\s/g, '');
       if (cardNumberDigits.length !== 16) {
         throw new Error('Kart numarası 16 haneli olmalıdır.');
       }
 
-      // Validate CVV
       if (form.cvv.length !== 3) {
         throw new Error('CVV 3 haneli olmalıdır.');
       }
 
-      // Validate expiration date
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
       const expYear = parseInt(form.expire_year);
@@ -128,7 +120,6 @@ export function PaymentMethodModal({
       }
 
       if (editingPaymentId) {
-        // Update existing payment method
         const { error } = await supabase
           .from('payment_methods')
           .update({
@@ -136,14 +127,17 @@ export function PaymentMethodModal({
             card_number: cardNumberDigits,
             expire_month: form.expire_month,
             expire_year: form.expire_year,
+            cvv: form.cvv,
             is_default: form.is_default
           })
           .eq('id', editingPaymentId);
 
         if (error) throw error;
-        showToast('Kart başarıyla güncellendi.', 'success');
+        toast({
+          title: 'Başarılı',
+          description: 'Kart başarıyla güncellendi.'
+        });
       } else {
-        // Create new payment method
         const { error } = await supabase
           .from('payment_methods')
           .insert([{
@@ -157,14 +151,21 @@ export function PaymentMethodModal({
           }]);
 
         if (error) throw error;
-        showToast('Kart başarıyla eklendi.', 'success');
+        toast({
+          title: 'Başarılı',
+          description: 'Kart başarıyla eklendi.'
+        });
       }
 
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Payment method error:', error);
-      showToast(error instanceof Error ? error.message : 'Bir hata oluştu.', 'error');
+      toast({
+        title: 'Hata',
+        description: error instanceof Error ? error.message : 'Bir hata oluştu.',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }

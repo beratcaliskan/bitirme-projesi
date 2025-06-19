@@ -14,7 +14,7 @@ export default function NewAdminPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    full_name: '',
+    name: '',
     role: 'admin' as AdminRole
   });
 
@@ -46,7 +46,6 @@ export default function NewAdminPage() {
     setLoading(true);
 
     try {
-      // Önce auth tablosuna kullanıcı ekleyelim
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -55,13 +54,12 @@ export default function NewAdminPage() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Şimdi admins tablosuna ekleyelim
         const { error: adminError } = await supabase
           .from('admins')
           .insert([{
             id: authData.user.id,
             email: formData.email,
-            full_name: formData.full_name,
+            name: formData.name,
             role: formData.role,
             is_super_admin: formData.role === 'super_admin'
           }]);
@@ -89,8 +87,8 @@ export default function NewAdminPage() {
           <div>
             <Input
               label="Ad Soyad"
-              value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
               placeholder="Yöneticinin adı ve soyadı"
               className="w-full"

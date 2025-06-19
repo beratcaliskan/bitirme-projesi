@@ -68,12 +68,10 @@ export function useToast() {
   return context;
 }
 
-export const toast = (props: ToastProps) => {
-  if (typeof window === 'undefined') return;
+export function useGlobalToast() {
   const context = React.useContext(ToastContext);
   if (!context) {
-    console.error('Toast was called outside of ToastProvider');
-    return;
+    throw new Error('useGlobalToast must be used within a ToastProvider');
   }
-  context.toast(props);
-}; 
+  return context.toast;
+} 

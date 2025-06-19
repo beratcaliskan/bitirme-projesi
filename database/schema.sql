@@ -23,7 +23,7 @@ create table public.addresses (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.users on delete cascade not null,
   title text not null, -- Ev, İş vb.
-  full_name text not null,
+  name text not null,
   phone text not null,
   city text not null,
   district text not null,
