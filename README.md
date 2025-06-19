@@ -128,15 +128,3 @@ Vercel, Netlify veya diğer Next.js destekleyen platformlarda deploy edebilirsin
 ## 📄 Lisans
 
 Bu proje eğitim amaçlı geliştirilmiştir.
-
-## 🤝 Katkıda Bulunma
-
-1. Fork yapın
-2. Feature branch oluşturun (`git checkout -b feature/AmazingFeature`)
-3. Commit yapın (`git commit -m 'Add some AmazingFeature'`)
-4. Branch'i push edin (`git push origin feature/AmazingFeature`)
-5. Pull Request açın
-
-## 📞 İletişim
-
-Proje hakkında sorularınız için iletişime geçebilirsiniz. 
