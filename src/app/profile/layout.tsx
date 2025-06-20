@@ -12,6 +12,7 @@ const profileSections = [
   { name: 'Adreslerim', href: '/profile/addresses' },
   { name: 'Ödeme Yöntemlerim', href: '/profile/payment-methods' },
   { name: 'Siparişlerim', href: '/profile/orders' },
+  { name: 'Destek Taleplerim', href: '/profile/support' },
 ];
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {

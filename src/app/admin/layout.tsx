@@ -146,7 +146,7 @@ export default function AdminLayout({
         <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:top-16 lg:left-0 lg:z-20">
           <Sidebar isSuperAdmin={isSuperAdmin} />
         </div>
-        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 lg:ml-64">
+        <main className="flex-1 overflow-hidden p-4 sm:p-6 lg:p-8 lg:ml-64">
           {children}
         </main>
       </div>

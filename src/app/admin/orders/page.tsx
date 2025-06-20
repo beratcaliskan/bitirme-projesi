@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AdminOrderDetailModal } from '@/components/admin/AdminOrderDetailModal';
 import * as Select from '@radix-ui/react-select';
-import { Check, ChevronDown, Eye, Package, Truck, CheckCircle, XCircle, Clock, Printer, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Eye, Package, Truck, CheckCircle, XCircle, Clock, Printer, Trash2, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
 
 
@@ -194,6 +194,10 @@ export default function OrdersPage() {
   const openOrderDetail = (order: Order) => {
     setSelectedOrder(order);
     setIsDetailModalOpen(true);
+  };
+
+  const openOrderChat = (orderId: string) => {
+    window.open(`/admin/support/order/${orderId}`, '_blank');
   };
 
   async function handleDeleteOrder(orderId: string) {
@@ -589,6 +593,15 @@ export default function OrdersPage() {
                             >
                           <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span className="hidden sm:inline">Detay</span>
+                            </Button>
+                            <Button
+                          onClick={() => openOrderChat(order.id)}
+                          variant="outline"
+                              size="sm"
+                          className="flex items-center gap-1 text-xs sm:text-sm text-blue-600 hover:text-blue-700 hover:border-blue-300"
+                            >
+                          <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden sm:inline">Chat</span>
                             </Button>
                             <Button
                           onClick={() => handlePrintOrder(order)}

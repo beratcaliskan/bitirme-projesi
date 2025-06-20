@@ -57,6 +57,47 @@ html {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
 }
+
+/* Support pages - disable body scrolling only */
+body:has([data-support-page]) {
+  overflow: hidden;
+}
+
+[data-support-page] * {
+  outline: none !important;
+}
+
+[data-support-page] .overflow-y-auto {
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+[data-support-page] .overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-support-page] .overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-support-page] .overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 3px;
+}
+
+[data-support-page] .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
+
+/* Disable overscroll behavior */
+html:has([data-support-page]) {
+  overscroll-behavior: none !important;
+}
+
+body:has([data-support-page]) {
+  overscroll-behavior: none !important;
+}
 /*---break---*/
 :root {
   --radius: 0.625rem;
@@ -129,7 +170,7 @@ html {
 /*---break---*/
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
