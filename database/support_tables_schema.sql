@@ -113,7 +113,7 @@ ALTER TABLE support_chats DISABLE ROW LEVEL SECURITY;
 ALTER TABLE support_messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE admins DISABLE ROW LEVEL SECURITY;
 
--- 9. Add helpful views (optional)
+-- 9. Add helpful views for the application
 
 -- View for chat statistics
 CREATE OR REPLACE VIEW chat_statistics AS
@@ -172,29 +172,4 @@ LEFT JOIN LATERAL (
     ORDER BY created_at DESC
     LIMIT 1
 ) lm ON true
-ORDER BY sc.last_message_at DESC NULLS LAST, sc.created_at DESC;
-
--- 10. Insert some test data (optional - remove in production)
--- You can uncomment these lines to insert test data
-
-/*
--- Insert test support chat
-INSERT INTO support_chats (order_id, user_id, subject, priority) 
-SELECT 
-    o.id as order_id,
-    o.user_id,
-    'Test Destek Talebi - Sipariş Sorunu' as subject,
-    'HIGH' as priority
-FROM orders o 
-LIMIT 1;
-
--- Insert test message
-INSERT INTO support_messages (chat_id, sender_id, sender_type, message)
-SELECT 
-    sc.id as chat_id,
-    sc.user_id as sender_id,
-    'USER' as sender_type,
-    'Merhaba, siparişimle ilgili bir sorunum var. Yardımcı olabilir misiniz?' as message
-FROM support_chats sc 
-LIMIT 1;
-*/ 
+ORDER BY sc.last_message_at DESC NULLS LAST, sc.created_at DESC; 

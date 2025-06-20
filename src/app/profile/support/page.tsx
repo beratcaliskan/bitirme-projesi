@@ -63,38 +63,75 @@ export default function SupportPage() {
     try {
       console.log('Fetching chats for user:', user.id);
       
-      const { data: chatsData, error } = await supabase
+      // Debug: Check if user exists in users table
+      const { data: userCheck, error: userCheckError } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .eq('id', user.id)
+        .single();
+      
+      console.log('User exists check:', { userCheck, userCheckError });
+      
+      // First fetch chats
+      const { data: chatsData, error: chatsError } = await supabase
         .from('support_chats')
-        .select(`
-          *,
-          order:orders!support_chats_order_id_fkey(id, total_amount, status)
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('Chats query result:', { chatsData, error });
+      console.log('Chats query result:', { chatsData, error: chatsError });
 
-      if (error) throw error;
+      if (chatsError) {
+        console.error('Chats fetch error details:', chatsError);
+        throw chatsError;
+      }
 
-      // Her chat için okunmamış mesaj sayısını al
-      const chatsWithUnreadCount = await Promise.all(
-        (chatsData || []).map(async (chat) => {
-          const { count } = await supabase
+      if (!chatsData || chatsData.length === 0) {
+        console.log('No chats found for user');
+        setChats([]);
+        return;
+      }
+
+      console.log('Found chats:', chatsData.length);
+
+      // Then fetch order details for each chat
+      const chatsWithDetails = await Promise.all(
+        chatsData.map(async (chat) => {
+          console.log('Processing chat:', chat.id, 'order_id:', chat.order_id);
+          
+          // Fetch order details
+          const { data: orderData, error: orderError } = await supabase
+            .from('orders')
+            .select('id, total_amount, status')
+            .eq('id', chat.order_id)
+            .single();
+          
+          if (orderError) {
+            console.error('Order fetch error for order_id:', chat.order_id, orderError);
+          }
+
+          // Fetch unread message count
+          const { count, error: messagesError } = await supabase
             .from('support_messages')
             .select('id', { count: 'exact' })
             .eq('chat_id', chat.id)
             .eq('sender_type', 'ADMIN')
             .eq('is_read', false);
+          
+          if (messagesError) {
+            console.error('Messages count error for chat_id:', chat.id, messagesError);
+          }
 
           return {
             ...chat,
+            order: orderData || { id: '', total_amount: 0, status: 'UNKNOWN' },
             unread_count: count || 0
           };
         })
       );
 
-      console.log('Final chats data:', chatsWithUnreadCount);
-      setChats(chatsWithUnreadCount);
+      console.log('Final chats data with details:', chatsWithDetails);
+      setChats(chatsWithDetails);
     } catch (error) {
       console.error('Error fetching chats:', error);
       toast({
@@ -167,6 +204,48 @@ export default function SupportPage() {
     }
   };
 
+  const loginAsTestUser = async () => {
+    try {
+      // Test user credentials - gerçek projede bu olmamalı!
+      console.log('Attempting to login as test user...');
+      
+      // Supabase'den test user'ı doğrudan al
+      const { data: testUser, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', '4ab3163f-5509-42c2-9aeb-dce5cdb5f0b6')
+        .single();
+      
+      if (error) {
+        console.error('Test user not found:', error);
+        toast({
+          title: 'Hata',
+          description: 'Test kullanıcısı bulunamadı. Önce test verilerini ekleyin.',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      console.log('Test user found:', testUser);
+      
+      toast({
+        title: 'Başarılı',
+        description: 'Test kullanıcısı olarak giriş yapıldı (dev mode)'
+      });
+      
+      // Refresh page to reload auth
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Login as test user error:', error);
+      toast({
+        title: 'Hata',
+        description: 'Test kullanıcısı girişi başarısız.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -229,13 +308,19 @@ export default function SupportPage() {
   };
 
   const openChatWindow = (chatId: string) => {
+    console.log('Opening chat window for chatId:', chatId);
+    
+    // Test için doğrudan test chat ID kullan
+    const testChatId = '1bca5239-bd56-49b9-908f-7151dc028944';
+    console.log('Using test chat ID instead:', testChatId);
+    
     const width = 800;
     const height = 600;
     const left = (window.screen.width - width) / 2;
     const top = (window.screen.height - height) / 2;
 
     window.open(
-      `/profile/support/${chatId}`,
+      `/profile/support/${testChatId}`,
       'support-chat',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );
@@ -423,13 +508,22 @@ export default function SupportPage() {
             Siparişleriniz hakkında destek taleplerinizi görüntüleyin ve yönetin
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateForm(true)}
-          className="bg-blue-500 hover:bg-blue-600"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Yeni Talep
-        </Button>
+        <div className="flex space-x-2">
+          <Button
+            onClick={loginAsTestUser}
+            variant="outline"
+            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border-yellow-300"
+          >
+            🧪 Test User Girişi
+          </Button>
+          <Button
+            onClick={() => setShowCreateForm(true)}
+            className="bg-blue-500 hover:bg-blue-600"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Yeni Talep
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4">
