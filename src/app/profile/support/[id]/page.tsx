@@ -67,31 +67,31 @@ export default function ProfileChatDetailPage() {
   }, [authLoading, user, chatId]);
 
   const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'end'
-      });
-    }
-    
-    // Alternatif method
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 100);
   };
 
-  // Forced scroll to bottom without animation
   const forceScrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
-        behavior: 'auto',
-        block: 'end'
-      });
-    }
-    
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      const container = messagesContainerRef.current;
+      container.scrollTop = container.scrollHeight;
     }
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 100);
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 300);
   };
 
   const fetchChatDetails = useCallback(async () => {
@@ -108,18 +108,29 @@ export default function ProfileChatDetailPage() {
 
     if (!user?.id) {
       console.error('No user ID found');
-      toast({
-        title: 'Hata',
-        description: 'Kullanıcı girişi gerekli.',
-        variant: 'destructive'
-      });
-      setLoading(false);
-      return;
+      console.log('Trying to get user from auth...');
+      
+      // Auth durumunu kontrol et
+      const { data: authData } = await supabase.auth.getUser();
+      console.log('Auth user data:', authData);
+      
+      if (!authData.user) {
+        toast({
+          title: 'Hata',
+          description: 'Kullanıcı girişi gerekli.',
+          variant: 'destructive'
+        });
+        setLoading(false);
+        return;
+      }
     }
 
     try {
-      console.log('Fetching chat details for chatId:', chatId);
+      console.log('=== CHAT FETCH DEBUG ===');
+      console.log('Chat ID from params:', chatId);
+      console.log('Chat ID type:', typeof chatId);
       console.log('Current user:', user);
+      console.log('User ID:', user?.id);
       
       const { data: chatData, error: chatError } = await supabase
         .from('support_chats')
@@ -135,12 +146,24 @@ export default function ProfileChatDetailPage() {
       }
 
       // Kullanıcının kendi chat'i mi kontrol et
+      console.log('Checking user access:', {
+        chatUserId: chatData.user_id,
+        currentUserId: user?.id,
+        userIdType: typeof user?.id,
+        chatUserIdType: typeof chatData.user_id
+      });
+
       if (chatData.user_id !== user?.id) {
         console.error('Access denied - user_id mismatch:', {
           chatUserId: chatData.user_id,
-          currentUserId: user?.id
+          currentUserId: user?.id,
+          stringComparison: String(chatData.user_id) === String(user?.id)
         });
-        throw new Error('Bu chate erişim yetkiniz yok');
+        
+        // String comparison da deneyelim
+        if (String(chatData.user_id) !== String(user?.id)) {
+          throw new Error('Bu chate erişim yetkiniz yok');
+        }
       }
 
       console.log('Fetching user data for user_id:', chatData.user_id);
@@ -193,6 +216,7 @@ export default function ProfileChatDetailPage() {
       setMessages(messagesData || []);
 
       await markMessagesAsRead();
+      await markAdminMessagesAsRead();
       
       // Force scroll to bottom after loading
       setTimeout(() => {
@@ -223,6 +247,21 @@ export default function ProfileChatDetailPage() {
       console.error('Error marking messages as read:', error);
     }
   };
+
+  const markAdminMessagesAsRead = async () => {
+    try {
+      await supabase
+        .from('support_messages')
+        .update({ is_read: true })
+        .eq('chat_id', chatId)
+        .eq('sender_type', 'ADMIN')
+        .eq('is_read', false)
+      
+      console.log('Admin messages marked as read')
+    } catch (error) {
+      console.error('Error marking admin messages as read:', error)
+    }
+  }
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !user || !chat) return;
@@ -287,29 +326,60 @@ export default function ProfileChatDetailPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Real-time subscription for messages
+  // Real-time subscription for messages and chat updates
   useEffect(() => {
     if (!chat?.id) return;
 
-    const channel = supabase
-      .channel(`support_chat_${chat.id}`)
+    // Single comprehensive message subscription
+    const messageChannel = supabase
+      .channel(`customer_chat_${chat.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'support_messages',
           filter: `chat_id=eq.${chat.id}`,
         },
         (payload) => {
-          console.log('New message received:', payload);
-          setMessages(prev => {
-            const exists = prev.some(msg => msg.id === payload.new.id);
-            if (exists) return prev;
-            return [...prev, payload.new as SupportMessage];
-          });
-          setTimeout(scrollToBottom, 100);
-          setTimeout(scrollToBottom, 200);
+          console.log('Real-time message update:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newMessage = payload.new as SupportMessage;
+            setMessages(prev => {
+              const exists = prev.some(msg => msg.id === newMessage.id);
+              if (exists) return prev;
+              return [...prev, newMessage];
+            });
+            setTimeout(scrollToBottom, 100);
+            setTimeout(scrollToBottom, 200);
+
+            // Mark admin messages as read immediately
+            if (newMessage.sender_type === 'ADMIN' && !document.hidden) {
+              setTimeout(() => {
+                markAdminMessagesAsRead();
+              }, 500);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedMessage = payload.new as SupportMessage;
+            setMessages(prev => prev.map(msg => 
+              msg.id === updatedMessage.id ? updatedMessage : msg
+            ));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'support_chats',
+          filter: `id=eq.${chat.id}`
+        },
+        (payload) => {
+          console.log('Chat status updated:', payload.new);
+          const updatedChat = payload.new as any;
+          setChat(prev => prev ? { ...prev, status: updatedChat.status } : null);
         }
       )
       .subscribe();
@@ -322,6 +392,7 @@ export default function ProfileChatDetailPage() {
           setAdminTyping(payload.payload.typing);
           
           if (payload.payload.typing) {
+            setTimeout(scrollToBottom, 100);
             setTimeout(() => {
               setAdminTyping(false);
             }, 3000);
@@ -331,10 +402,17 @@ export default function ProfileChatDetailPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messageChannel);
       supabase.removeChannel(typingChannel);
     };
   }, [chat?.id]);
+
+  // Auto scroll when admin starts typing
+  useEffect(() => {
+    if (adminTyping) {
+      forceScrollToBottom();
+    }
+  }, [adminTyping]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -344,34 +422,33 @@ export default function ProfileChatDetailPage() {
   };
 
   const getStatusStyle = (status: string) => {
-    const styles = {
-      OPEN: 'bg-red-100 text-red-800',
-      IN_PROGRESS: 'bg-yellow-100 text-yellow-800',
-      CLOSED: 'bg-green-100 text-green-800'
-    };
-    return styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-800';
+    switch (status) {
+      case 'OPEN': 
+      case 'IN_PROGRESS': // Show IN_PROGRESS as OPEN to customer
+        return 'bg-green-100 text-green-800';
+      case 'CLOSED': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'OPEN':
-        return <AlertTriangle className="h-4 w-4" />;
-      case 'IN_PROGRESS':
+      case 'IN_PROGRESS': // Show IN_PROGRESS as OPEN to customer
         return <Clock className="h-4 w-4" />;
-      case 'CLOSED':
-        return <CheckCircle className="h-4 w-4" />;
-      default:
-        return <MessageCircle className="h-4 w-4" />;
+      case 'CLOSED': return <CheckCircle className="h-4 w-4" />;
+      default: return <AlertTriangle className="h-4 w-4" />;
     }
   };
 
   const getStatusText = (status: string) => {
-    const texts = {
-      OPEN: 'Açık',
-      IN_PROGRESS: 'Devam Ediyor',
-      CLOSED: 'Kapalı'
-    };
-    return texts[status as keyof typeof texts] || status;
+    switch (status) {
+      case 'OPEN':
+      case 'IN_PROGRESS': // Show IN_PROGRESS as OPEN to customer
+        return 'Açık';
+      case 'CLOSED': return 'Kapalı';
+      default: return 'Bilinmeyen';
+    }
   };
 
   const sendTypingEvent = (typing: boolean) => {
@@ -420,6 +497,54 @@ export default function ProfileChatDetailPage() {
       }
     }
   };
+
+  // Mark admin messages as read when window gets focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (chat?.id) {
+        markAdminMessagesAsRead();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [chat?.id]);
+
+  // Update chat status
+  const updateChatStatus = async (newStatus: 'OPEN' | 'IN_PROGRESS' | 'CLOSED') => {
+    try {
+      const { error } = await supabase
+        .from('support_chats')
+        .update({ status: newStatus })
+        .eq('id', chatId)
+        .eq('user_id', user?.id) // Ensure user can only update their own chat
+      
+      if (error) throw error
+      
+      // Update local state
+      setChat(prev => prev ? { ...prev, status: newStatus } : null)
+      
+      toast({
+        title: 'Başarılı',
+        description: `Destek talebi durumu ${getStatusText(newStatus).toLowerCase()} olarak güncellendi.`
+      })
+    } catch (error) {
+      console.error('Error updating chat status:', error)
+      toast({
+        title: 'Hata',
+        description: 'Durum güncellenirken bir hata oluştu.',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  // Close chat
+  const closeChat = () => {
+    updateChatStatus('CLOSED')
+  }
 
   if (loading) {
     return (
@@ -477,6 +602,21 @@ export default function ProfileChatDetailPage() {
               <div className={`inline-flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${getStatusStyle(chat.status)}`}>
                 {getStatusIcon(chat.status)}
                 <span>{getStatusText(chat.status)}</span>
+              </div>
+              
+              {/* Status control buttons */}
+              <div className="flex items-center space-x-2">
+                {chat.status !== 'CLOSED' && (
+                  <Button
+                    onClick={closeChat}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Talebi Kapat
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -603,26 +743,26 @@ export default function ProfileChatDetailPage() {
                             })}
                           </p>
                           {message.sender_type === 'USER' && (
-                            <div className="ml-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-200 flex items-center justify-center">
-                                <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-                              </div>
+                            <div className="ml-2 flex items-center space-x-1">
+                              <span className="text-xs text-blue-200">
+                                {message.is_read ? 'Görüldü' : 'Gönderildi'}
+                              </span>
+                              <div className={`w-2 h-2 rounded-full ${message.is_read ? 'bg-green-400' : 'bg-blue-400'}`}></div>
                             </div>
                           )}
                         </div>
                       </div>
                       
-                      {/* Typing indicator - would be shown when admin is typing */}
-                      {message.sender_type === 'ADMIN' && index === messages.length - 1 && (
+                      {/* Read status for user messages */}
+                      {/* {message.sender_type === 'USER' && index === messages.length - 1 && (
                         <div className="flex items-center mt-2 space-x-1">
-                          <span className="text-xs text-gray-500">Destek ekibi mesajınızı gördü</span>
+                          <span className="text-xs text-gray-500">Gönderildi</span>
                           <div className="flex space-x-1">
-                            <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
-                            <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse delay-75"></div>
-                            <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse delay-150"></div>
+                            <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                            <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
                           </div>
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 </div>
@@ -702,7 +842,7 @@ export default function ProfileChatDetailPage() {
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-red-400 rounded-full"></div>
                     <p className="text-xs text-red-600 font-medium">
-                      Bu destek talebi kapatılmıştır. Yeni mesaj gönderemezsiniz.
+                      Bu destek talebi kapatılmıştır. Yeni mesaj gönderemezsiniz. Yeni bir sorun için lütfen yeni destek talebi oluşturun.
                     </p>
                   </div>
                 ) : (

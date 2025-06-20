@@ -310,17 +310,13 @@ export default function SupportPage() {
   const openChatWindow = (chatId: string) => {
     console.log('Opening chat window for chatId:', chatId);
     
-    // Test için doğrudan test chat ID kullan
-    const testChatId = '1bca5239-bd56-49b9-908f-7151dc028944';
-    console.log('Using test chat ID instead:', testChatId);
-    
     const width = 800;
     const height = 600;
     const left = (window.screen.width - width) / 2;
     const top = (window.screen.height - height) / 2;
 
     window.open(
-      `/profile/support/${testChatId}`,
+      `/profile/support/${chatId}`,
       'support-chat',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );
