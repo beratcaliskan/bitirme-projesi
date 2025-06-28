@@ -8,7 +8,7 @@ import { CartProvider } from "@/components/ui/cart-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "E-Ticaret",
+  title: "Alzoon",
   description: "Modern E-Ticaret Sitesi",
 };
 

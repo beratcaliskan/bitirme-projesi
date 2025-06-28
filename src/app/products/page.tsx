@@ -315,7 +315,7 @@ export default function ProductsPage() {
                             type="checkbox"
                             checked={tempSelectedCategories.includes(category)}
                             onChange={() => toggleTempCategory(category)}
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600"
                           />
                           <span className="ml-2.5 text-sm text-gray-700 group-hover:text-gray-900">{category}</span>
                         </label>
@@ -417,7 +417,7 @@ export default function ProductsPage() {
                             type="checkbox"
                             checked={tempSelectedBrands.includes(brand)}
                             onChange={() => toggleTempBrand(brand)}
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600"
                           />
                           <span className="ml-2.5 text-sm text-gray-700 group-hover:text-gray-900">{brand}</span>
                         </label>
@@ -462,7 +462,7 @@ export default function ProductsPage() {
                             type="checkbox"
                             checked={tempSelectedCategories.includes(category)}
                             onChange={() => toggleTempCategory(category)}
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600"
                           />
                           <span className="ml-2.5 text-sm text-gray-700 group-hover:text-gray-900">{category}</span>
                         </label>
@@ -563,7 +563,7 @@ export default function ProductsPage() {
                             type="checkbox"
                             checked={tempSelectedBrands.includes(brand)}
                             onChange={() => toggleTempBrand(brand)}
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600"
                           />
                           <span className="ml-2.5 text-sm text-gray-700 group-hover:text-gray-900">{brand}</span>
                         </label>

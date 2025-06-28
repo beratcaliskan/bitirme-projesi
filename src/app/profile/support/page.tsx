@@ -504,7 +504,7 @@ export default function SupportPage() {
             Siparişleriniz hakkında destek taleplerinizi görüntüleyin ve yönetin
           </p>
         </div>
-        <div className="flex space-x-2">
+{/*         <div className="flex space-x-2">
           <Button
             onClick={loginAsTestUser}
             variant="outline"
@@ -519,7 +519,7 @@ export default function SupportPage() {
             <Plus className="h-4 w-4 mr-2" />
             Yeni Talep
           </Button>
-        </div>
+        </div> */}
       </div>
 
       <div className="grid gap-4">

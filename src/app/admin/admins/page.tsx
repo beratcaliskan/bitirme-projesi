@@ -279,12 +279,12 @@ export default function AdminsPage() {
                         onValueChange={(value) => handleRoleUpdate(admin.id, value as AdminRole)}
                       >
                         <Select.Trigger
-                          className={`inline-flex items-center justify-between rounded-md px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                            roleStyles[admin.role].bg
-                          } ${roleStyles[admin.role].text}`}
+                          className={`inline-flex items-center justify-between rounded-md px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer ${roleStyles[admin.role].bg} ${roleStyles[admin.role].text}`}
                         >
-                          <span className="hidden sm:inline">{roleLabels[admin.role]}</span>
-                          <span className="sm:hidden">{roleLabels[admin.role].split(' ')[0]}</span>
+                          <Select.Value>
+                            <span className="hidden sm:inline">{roleLabels[admin.role]}</span>
+                            <span className="sm:hidden">{roleLabels[admin.role].split(' ')[0]}</span>
+                          </Select.Value>
                           <Select.Icon>
                             <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                           </Select.Icon>
@@ -298,9 +298,7 @@ export default function AdminsPage() {
                                 <Select.Item
                                   key={value}
                                   value={value}
-                                  className={`relative flex items-center px-8 py-2 text-sm cursor-default select-none focus:outline-none ${
-                                    roleStyles[value as AdminRole].hover
-                                  }`}
+                                  className={`bg-white rounded relative flex items-center px-8 py-2 text-sm cursor-default select-none focus:outline-none ${roleStyles[value as AdminRole].hover}`}
                                 >
                                   <Select.ItemText>{label}</Select.ItemText>
                                   <Select.ItemIndicator className="absolute left-2 inline-flex items-center">

@@ -742,14 +742,14 @@ export default function ProfileChatDetailPage() {
                               minute: '2-digit'
                             })}
                           </p>
-                          {message.sender_type === 'USER' && (
+{/*                           {message.sender_type === 'USER' && (
                             <div className="ml-2 flex items-center space-x-1">
                               <span className="text-xs text-blue-200">
                                 {message.is_read ? 'Görüldü' : 'Gönderildi'}
                               </span>
                               <div className={`w-2 h-2 rounded-full ${message.is_read ? 'bg-green-400' : 'bg-blue-400'}`}></div>
                             </div>
-                          )}
+                          )} */}
                         </div>
                       </div>
                       

@@ -70,7 +70,7 @@ export default function Sidebar({ isSuperAdmin, onItemClick }: SidebarProps) {
   }
 
 
-  menuItems.push({
+/*   menuItems.push({
     href: '/admin/debug',
     label: 'Debug',
     icon: (
@@ -79,7 +79,7 @@ export default function Sidebar({ isSuperAdmin, onItemClick }: SidebarProps) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     )
-  });
+  }); */
 
   return (
     <div className="h-screen bg-white border-r border-gray-200 w-64 flex-shrink-0">
