@@ -324,11 +324,55 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Storage Setup for Product Images
+-- Create storage bucket for product images
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'product-images',
+  'product-images',
+  true,
+  5242880, -- 5MB limit
+  ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+) ON CONFLICT (id) DO NOTHING;
+
+-- Create storage policies for product images
+-- First drop existing policies if they exist
+DROP POLICY IF EXISTS "Authenticated users can upload product images" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view product images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update product images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete product images" ON storage.objects;
+
+-- Create policy to allow authenticated users to upload images
+CREATE POLICY "Authenticated users can upload product images" ON storage.objects
+FOR INSERT WITH CHECK (
+  bucket_id = 'product-images' 
+  AND auth.role() = 'authenticated'
+);
+
+-- Create policy to allow everyone to view product images
+CREATE POLICY "Anyone can view product images" ON storage.objects
+FOR SELECT USING (bucket_id = 'product-images');
+
+-- Create policy to allow authenticated users to update their uploads
+CREATE POLICY "Users can update product images" ON storage.objects
+FOR UPDATE USING (
+  bucket_id = 'product-images' 
+  AND auth.role() = 'authenticated'
+);
+
+-- Create policy to allow authenticated users to delete images
+CREATE POLICY "Users can delete product images" ON storage.objects
+FOR DELETE USING (
+  bucket_id = 'product-images' 
+  AND auth.role() = 'authenticated'
+);
+
 -- Success message
 DO $$
 BEGIN
     RAISE NOTICE 'Database setup completed successfully!';
     RAISE NOTICE 'Tables created: users, admins, addresses, payment_methods, products, orders, order_items, carts, cart_items, support_chats, support_messages';
+    RAISE NOTICE 'Storage bucket created: product-images with proper policies';
     RAISE NOTICE 'Indexes, triggers, and RLS policies have been applied.';
     RAISE NOTICE 'Realtime has been enabled for: support_chats, support_messages, orders, users';
     RAISE NOTICE 'Run "SELECT * FROM check_realtime_config();" to verify realtime configuration.';

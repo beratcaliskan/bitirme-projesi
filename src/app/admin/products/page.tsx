@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import Modal from '@/components/ui/modal';
+import ImageUpload from '@/components/ui/image-upload';
 import Image from 'next/image';
 
 interface ProductSize {
@@ -431,10 +432,12 @@ export default function AdminProducts() {
                   value={formData.brand}
                   onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
                 />
-                <Input
-                  label="Görsel URL"
+                <ImageUpload
+                  label="Ürün Görseli"
                   value={formData.image_url}
-                  onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, image_url: value }))}
+                  bucket="product-images"
+                  folder="products"
                 />
                 <Select
                   value={formData.type}
