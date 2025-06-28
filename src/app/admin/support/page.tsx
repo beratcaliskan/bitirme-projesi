@@ -317,7 +317,7 @@ export default function SupportPage() {
                         <div className="text-sm font-medium text-gray-900 flex items-center">
                           {chat.user.name}
                           {chat.unread_count > 0 && (
-                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
                               {chat.unread_count}
                             </span>
                           )}
