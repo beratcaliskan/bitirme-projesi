@@ -30,44 +30,56 @@ export default function ImageUpload({
 
     setIsUploading(true);
     try {
-      // For self-hosted Supabase, try to create bucket if it doesn't exist
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        console.error('Error checking buckets:', bucketsError);
-        // If listBuckets fails, it might be a self-hosted setup issue
-        // Try to proceed with upload anyway
-        console.log('Proceeding with upload despite bucket check failure...');
-      } else {
-        const bucketExists = buckets?.some(b => b.id === bucket);
-        if (!bucketExists) {
-          console.log(`Bucket '${bucket}' not found. Attempting to create it...`);
-          
-          // Try to create bucket programmatically for self-hosted
-          const { error: createError } = await supabase.storage.createBucket(bucket, {
-            public: true,
-            fileSizeLimit: 5242880, // 5MB
-            allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-          });
-          
-          if (createError) {
-            console.error('Failed to create bucket:', createError);
-            throw new Error(`Storage bucket '${bucket}' does not exist and could not be created automatically. Please run the self-hosted storage setup SQL.`);
-          } else {
-            console.log(`Bucket '${bucket}' created successfully.`);
-          }
-        }
+      // Check authentication
+      const { data: { session }, error: authError } = await supabase.auth.getSession();
+      console.log('Upload Auth Check:', { 
+        hasSession: !!session, 
+        user: session?.user?.id, 
+        role: session?.user?.role,
+        authError 
+      });
+
+      if (!session) {
+        console.warn('No active session found during upload!');
       }
 
+      // 1. DİREKT YÜKLEME DENEMESİ
+      // Bucket kontrolünü atlıyoruz çünkü kullanıcı yetkisi listelemeye yetmeyebilir.
+      // Direkt olarak yüklemeyi deneyeceğiz. Bucket yoksa zaten upload hatası dönecektir.
+      
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;
 
-      console.log(`Uploading to bucket: ${bucket}, path: ${filePath}`);
+      console.log(`Attemping direct upload to bucket: ${bucket}, path: ${filePath}`);
 
-      const { data, error } = await supabase.storage
+      let { data, error } = await supabase.storage
         .from(bucket)
         .upload(filePath, file);
+
+      // 2. EĞER BUCKET BULUNAMADI HATASI ALIRSAK OLUŞTURMAYI DENEYELİM
+      if (error && (error.message.includes('bucket not found') || error.message.includes('The resource was not found'))) {
+        console.log('Bucket not found error caught. Attempting to create bucket...');
+        
+        const { error: createError } = await supabase.storage.createBucket(bucket, {
+          public: true,
+          fileSizeLimit: 5242880, // 5MB
+          allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        });
+
+        if (createError) {
+          console.error('Failed to create bucket:', createError);
+        } else {
+          console.log('Bucket created successfully. Retrying upload...');
+          // Bucket oluşturulduktan sonra tekrar yüklemeyi dene
+          const retryResult = await supabase.storage
+            .from(bucket)
+            .upload(filePath, file);
+          
+          data = retryResult.data;
+          error = retryResult.error;
+        }
+      }
 
       if (error) {
         console.error('Upload error:', error);

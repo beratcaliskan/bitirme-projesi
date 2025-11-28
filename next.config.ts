@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'http',
+        hostname: '192.168.1.16',
+        port: '8100',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'http',
         hostname: 'localhost',
         port: '8000',
         pathname: '/storage/v1/object/public/**',
@@ -43,3 +49,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
